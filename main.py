@@ -1,5 +1,5 @@
 from dataloaders.fromobj import ObjToPointCloud
 
-dataset = ObjToPointCloud('./objects', 1024)
+dataset = ObjToPointCloud('./objects/models', 1024)
 
-print(dataset.__getitem__(0))
+print(dataset.load_all(save=True))
