@@ -1,7 +1,7 @@
 import open3d
 import numpy
 
-mesh = open3d.io.read_triangle_mesh("head_models/S_1_3.obj")
+mesh = open3d.io.read_triangle_mesh("MODEL_DIRECTORY_HERE")
 vertices = numpy.asarray(mesh.vertices)
 
 z_threshold = numpy.percentile(vertices[:, 2], 95)
