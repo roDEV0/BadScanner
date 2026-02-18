@@ -2,8 +2,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as func
 
-device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else torch.device('cpu')
-print(f'Using {device} device')
+device = (
+    torch.accelerator.current_accelerator().type
+    if torch.accelerator.is_available()
+    else torch.device("cpu")
+)
+print(f"Using {device} device")
+
 
 class Transform(nn.Module):
     def __init__(self, dim, points):

@@ -1,0 +1,11 @@
+[project]
+name = "bad-scanner"
+version = "0.5.0"
+dependencies = [
+    "open3d",
+    "torch",
+    "numpy",
+]
+description = "A 3D plageocephaly scanner!"
+readme = "README.md"
+license = "MIT"

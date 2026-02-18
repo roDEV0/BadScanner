@@ -1,0 +1,5 @@
+# Some directories to exclude
+.venv/
+objects/
+*.obj
+*.ply

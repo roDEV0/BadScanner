@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as func
 from transform import Transform
 
+
 class GetFeatures(nn.Module):
     def __init__(self, points):
         super(GetFeatures, self).__init__()
