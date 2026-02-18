@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch.nn.functional as func
 from features import GetFeatures
 
+
 class Regression(nn.Module):
     def __init__(self, points):
         super(Regression, self).__init__()
