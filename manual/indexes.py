@@ -1,6 +1,7 @@
 import open3d
 import numpy
 
+
 def cephalic_index(mesh):
     vertices = numpy.asarray(mesh.vertices)
 
@@ -28,16 +29,17 @@ def cephalic_index(mesh):
     x_bottom = close_x[-1]
     y_bottom = close_y[-1]
 
-    pcd = mesh.sample_points_uniformly(number_of_points=1024)
-    sampled_points = numpy.asarray(pcd.points)
+    # pcd = mesh.sample_points_uniformly(number_of_points=1024)
+    # sampled_points = numpy.asarray(pcd.points)
 
     labeled_points = numpy.array([x_top, x_bottom, y_top, y_bottom])
-    all_points = numpy.vstack([sampled_points, labeled_points])
+    # all_points = numpy.vstack([sampled_points, labeled_points])
 
-    final_pcd = open3d.geometry.PointCloud()
-    final_pcd.points = open3d.utility.Vector3dVector(all_points)
+    # final_pcd = open3d.geometry.PointCloud()
+    # final_pcd.points = open3d.utility.Vector3dVector(all_points)
 
     print(labeled_points)
+
 
 def cva_index(mesh):
     vertices = numpy.asarray(mesh.vertices)
