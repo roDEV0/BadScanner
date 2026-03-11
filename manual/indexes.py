@@ -2,7 +2,7 @@ import open3d
 import numpy
 
 
-def cephalic_index(mesh):
+def cephalic_index(mesh, identify=False):
     vertices = numpy.asarray(mesh.vertices)
 
     z_threshold = numpy.percentile(vertices[:, 2], 95)
@@ -29,19 +29,24 @@ def cephalic_index(mesh):
     x_bottom = close_x[-1]
     y_bottom = close_y[-1]
 
-    # pcd = mesh.sample_points_uniformly(number_of_points=1024)
-    # sampled_points = numpy.asarray(pcd.points)
-
     labeled_points = numpy.array([x_top, x_bottom, y_top, y_bottom])
-    # all_points = numpy.vstack([sampled_points, labeled_points])
 
-    # final_pcd = open3d.geometry.PointCloud()
-    # final_pcd.points = open3d.utility.Vector3dVector(all_points)
+    if identify:
+        x_line = numpy.linalg.norm(x_top - x_bottom)
+        y_line = numpy.linalg.norm(y_top - y_bottom)
 
-    print(labeled_points)
+        cephalic_score = (x_line/y_line) * 100
 
+        print(f"X_Line -> {x_line}, Y_Line -> {y_line}, Score -> {cephalic_score}")
 
-def cva_index(mesh):
+        if cephalic_score > 90:
+            return labeled_points, True
+
+        return labeled_points, False
+
+    return labeled_points
+
+def cva_index(mesh, identify=False):
     vertices = numpy.asarray(mesh.vertices)
 
     z_threshold = numpy.percentile(vertices[:, 2], 95)
@@ -76,10 +81,16 @@ def cva_index(mesh):
 
     corners = numpy.array(corners)
 
-    pcd = mesh.sample_points_uniformly(number_of_points=1024)
-    sampled_points = numpy.asarray(pcd.points)
+    if identify:
+        trbl_line = numpy.linalg.norm(corners[0] - corners[3])
+        tlbr_line = numpy.linalg.norm(corners[1] - corners[2])
 
-    all_points = numpy.vstack([sampled_points, corners, center3d.reshape(1, 3)])
+        top_score = (trbl_line - tlbr_line) * 100
+        cephalic_score = top_score/trbl_line if trbl_line > tlbr_line else top_score/tlbr_line
 
-    final_pcd = open3d.geometry.PointCloud()
-    final_pcd.points = open3d.utility.Vector3dVector(all_points)
+        if cephalic_score > 6.25:
+            return corners, True
+
+        return corners, False
+
+    return corners
