@@ -10,6 +10,7 @@ import torch.nn.functional as F
 import optuna
 import optunahub
 
+
 def objective(trial: optuna.trial.Trial):
     torch.cuda.empty_cache()
 
@@ -29,7 +30,9 @@ def objective(trial: optuna.trial.Trial):
     dataset = HeadScanDataset(NPZ_DIR, randomize=False)
 
     indices = list(range(len(dataset)))
-    train_indices, eval_indices = train_test_split(indices, test_size=EVAL_PERC, shuffle=True)
+    train_indices, eval_indices = train_test_split(
+        indices, test_size=EVAL_PERC, shuffle=True
+    )
 
     train_data = HeadScanDataset(NPZ_DIR, randomize=True)
     eval_data = HeadScanDataset(NPZ_DIR, randomize=False)
@@ -45,7 +48,9 @@ def objective(trial: optuna.trial.Trial):
             else:
                 train_weights.append(1)
 
-        sampler = WeightedRandomSampler(weights=train_weights, num_samples=len(train_weights), replacement=True)
+        sampler = WeightedRandomSampler(
+            weights=train_weights, num_samples=len(train_weights), replacement=True
+        )
         train_loader = DataLoader(train_set, batch_size=BATCH, sampler=sampler)
     else:
         train_loader = DataLoader(train_set, batch_size=BATCH, shuffle=True)
@@ -58,18 +63,23 @@ def objective(trial: optuna.trial.Trial):
     train_targets = torch.cat(train_targets, dim=0)
 
     target_mean = train_targets.mean(dim=0).to(device)
-    target_std  = train_targets.std(dim=0).to(device)
+    target_std = train_targets.std(dim=0).to(device)
 
     print(f"Target mean:\n{target_mean}")
     print(f"Target std:\n{target_std}")
 
-    model = CRegression(1028, trial.suggest_float("drop1", 0.1, 0.5), trial.suggest_float("drop2", 0.1, 0.5), trial.suggest_float("drop3", 0.1, 0.5)).to(device)
+    model = CRegression(
+        1028,
+        trial.suggest_float("drop1", 0.1, 0.5),
+        trial.suggest_float("drop2", 0.1, 0.5),
+        trial.suggest_float("drop3", 0.1, 0.5),
+    ).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=LR)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, mode='min', factor=0.5, patience=10
+        optimizer, mode="min", factor=0.5, patience=10
     )
 
-    best_val_loss = float('inf')
+    best_val_loss = float("inf")
 
     for epoch in range(EPOCHS):
 
@@ -105,7 +115,7 @@ def objective(trial: optuna.trial.Trial):
                 val_loss += F.l1_loss(outputs, truths_norm)
 
         train_loss /= len(train_loader)
-        val_loss   /= len(eval_loader)
+        val_loss /= len(eval_loader)
         scheduler.step(val_loss)
 
         if val_loss < best_val_loss:
@@ -117,8 +127,13 @@ def objective(trial: optuna.trial.Trial):
 
     return best_val_loss
 
+
 module = optunahub.load_module(package="samplers/auto_sampler")
-study = optuna.create_study(direction="minimize", pruner=optuna.pruners.MedianPruner(n_startup_trials=5, n_warmup_steps=20), sampler=module.AutoSampler())
+study = optuna.create_study(
+    direction="minimize",
+    pruner=optuna.pruners.MedianPruner(n_startup_trials=5, n_warmup_steps=20),
+    sampler=module.AutoSampler(),
+)
 study.optimize(objective, n_trials=150, n_jobs=3, gc_after_trial=True)
 
 print(f"Best Params: {study.best_params}")

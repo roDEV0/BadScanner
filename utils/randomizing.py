@@ -50,6 +50,7 @@ def sample_fixed_points(pcd, num_points=1024):
     result.points = open3d.utility.Vector3dVector(points[idx])
     return result
 
+
 def generate_random(pcd):
     randomized = regional_dropout(pcd)
 

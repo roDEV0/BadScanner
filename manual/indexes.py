@@ -35,7 +35,7 @@ def cephalic_index(mesh, identify=False):
         x_line = numpy.linalg.norm(x_top - x_bottom)
         y_line = numpy.linalg.norm(y_top - y_bottom)
 
-        cephalic_score = (x_line/y_line) * 100
+        cephalic_score = (x_line / y_line) * 100
 
         print(f"X_Line -> {x_line}, Y_Line -> {y_line}, Score -> {cephalic_score}")
 
@@ -45,6 +45,7 @@ def cephalic_index(mesh, identify=False):
         return labeled_points, False
 
     return labeled_points
+
 
 def cva_index(mesh, identify=False):
     vertices = numpy.asarray(mesh.vertices)
@@ -86,7 +87,9 @@ def cva_index(mesh, identify=False):
         tlbr_line = numpy.linalg.norm(corners[1] - corners[2])
 
         top_score = (trbl_line - tlbr_line) * 100
-        cephalic_score = top_score/trbl_line if trbl_line > tlbr_line else top_score/tlbr_line
+        cephalic_score = (
+            top_score / trbl_line if trbl_line > tlbr_line else top_score / tlbr_line
+        )
 
         if cephalic_score > 6.25:
             return corners, True

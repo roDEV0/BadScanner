@@ -7,6 +7,7 @@ from sklearn.model_selection import train_test_split
 from models.cephalic.cpnet import CRegression
 from models.cvai.cvpnet import CVRegression
 import torch.nn.functional as F
+from models.pointnet2.regression import PointNet
 
 BATCH = 32
 EPOCHS = 200
@@ -24,7 +25,9 @@ MODELS_DIR = root / "checkpoint"
 dataset = HeadScanDataset(NPZ_DIR, randomize=False)
 
 indices = list(range(len(dataset)))
-train_indices, eval_indices = train_test_split(indices, test_size=EVAL_PERC, shuffle=True)
+train_indices, eval_indices = train_test_split(
+    indices, test_size=EVAL_PERC, shuffle=True
+)
 
 train_data = HeadScanDataset(NPZ_DIR, randomize=True)
 eval_data = HeadScanDataset(NPZ_DIR, randomize=False)
@@ -40,7 +43,9 @@ if WEIGHTED:
         else:
             train_weights.append(1)
 
-    sampler = WeightedRandomSampler(weights=train_weights, num_samples=len(train_weights), replacement=True)
+    sampler = WeightedRandomSampler(
+        weights=train_weights, num_samples=len(train_weights), replacement=True
+    )
     train_loader = DataLoader(train_set, batch_size=BATCH, sampler=sampler)
 else:
     train_loader = DataLoader(train_set, batch_size=BATCH, shuffle=True)
@@ -53,18 +58,18 @@ for _, truths, _ in train_loader:
 train_targets = torch.cat(train_targets, dim=0)
 
 target_mean = train_targets.mean(dim=0).to(device)
-target_std  = train_targets.std(dim=0).to(device)
+target_std = train_targets.std(dim=0).to(device)
 
 print(f"Target mean:\n{target_mean}")
 print(f"Target std:\n{target_std}")
 
-model = CRegression(1028).to(device)
+model = PointNet().to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=LR)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    optimizer, mode='min', factor=0.5, patience=10
+    optimizer, mode="min", factor=0.5, patience=10
 )
 
-best_val_loss = float('inf')
+best_val_loss = float("inf")
 
 for epoch in range(EPOCHS):
 
@@ -102,22 +107,27 @@ for epoch in range(EPOCHS):
             val_loss += F.l1_loss(outputs, truths_norm)
 
     train_loss /= len(train_loader)
-    val_loss   /= len(eval_loader)
+    val_loss /= len(eval_loader)
     scheduler.step(val_loss)
 
-    print(f"Epoch {epoch+1:03d}/{EPOCHS} | Train Loss: {train_loss:.6f} | Val Loss: {val_loss:.6f}")
+    print(
+        f"Epoch {epoch+1:03d}/{EPOCHS} | Train Loss: {train_loss:.6f} | Val Loss: {val_loss:.6f}"
+    )
 
     if val_loss < best_val_loss:
         best_val_loss = val_loss
         save_path = MODELS_DIR / f"checkpoint.pth"
-        torch.save({
-            "epoch": epoch + 1,
-            "model_state_dict": model.state_dict(),
-            "optimizer_state_dict": optimizer.state_dict(),
-            "val_loss": val_loss,
-            "target_mean": target_mean,
-            "target_std": target_std,
-        }, save_path)
+        torch.save(
+            {
+                "epoch": epoch + 1,
+                "model_state_dict": model.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
+                "val_loss": val_loss,
+                "target_mean": target_mean,
+                "target_std": target_std,
+            },
+            save_path,
+        )
         print(f"  ✓ Saved best model (val loss: {val_loss:.6f})")
 
 print(f"\nTraining complete. Best val loss: {best_val_loss:.6f}")
