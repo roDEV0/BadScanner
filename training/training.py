@@ -2,10 +2,8 @@ import torch
 
 from datasetclass.cephalic import HeadScanDataset
 from pathlib import Path
-from torch.utils.data import DataLoader, Subset, WeightedRandomSampler
+from torch.utils.data import DataLoader, Subset
 from sklearn.model_selection import train_test_split
-from models.cephalic.cpnet import CRegression
-from models.cvai.cvpnet import CVRegression
 import torch.nn.functional as F
 from models.pointnet2.regression import PointNet
 
@@ -13,7 +11,6 @@ BATCH = 32
 EPOCHS = 200
 LR = 0.05
 EVAL_PERC = 0.2
-WEIGHTED = True
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
@@ -35,20 +32,7 @@ eval_data = HeadScanDataset(NPZ_DIR, randomize=False)
 train_set = Subset(train_data, train_indices)
 eval_set = Subset(eval_data, eval_indices)
 
-train_weights = []
-if WEIGHTED:
-    for _, _, plageo in train_set:
-        if plageo:
-            train_weights.append(2)
-        else:
-            train_weights.append(1)
-
-    sampler = WeightedRandomSampler(
-        weights=train_weights, num_samples=len(train_weights), replacement=True
-    )
-    train_loader = DataLoader(train_set, batch_size=BATCH, sampler=sampler)
-else:
-    train_loader = DataLoader(train_set, batch_size=BATCH, shuffle=True)
+train_loader = DataLoader(train_set, batch_size=BATCH, shuffle=True)
 
 eval_loader = DataLoader(eval_set, batch_size=BATCH, shuffle=False)
 
@@ -101,10 +85,8 @@ for epoch in range(EPOCHS):
 
             outputs = model(cloud)
 
-            outputs_real = outputs * target_std + target_mean
-
             truths_norm = (truths - target_mean) / target_std
-            val_loss += F.l1_loss(outputs, truths_norm)
+            val_loss += F.l1_loss(outputs, truths_norm).item()
 
     train_loss /= len(train_loader)
     val_loss /= len(eval_loader)
