@@ -200,6 +200,12 @@ module = optunahub.load_module(package="samplers/auto_sampler")
 sampler = module.AutoSampler()
 pruner = optuna.pruners.MedianPruner(n_startup_trials=10, n_warmup_steps=10)
 
+storage = optuna.storages.RDBStorage(
+    url=os.getenv("DB_URL"),
+    failed_trial_callback=optuna.storages.RetryFailedTrialCallback(max_retry=3),
+    heartbeat_interval=30,
+)
+
 study = optuna.create_study(
     direction="minimize",
     sampler=sampler,
