@@ -7,7 +7,7 @@ from models.cephalic.ctnet import CTnet
 class CVGetFeatures(nn.Module):
     def __init__(self, num_points=1028, num_global_feats=8):
         super(CVGetFeatures, self).__init__()
-
+x
         self.num_points = num_points
         self.num_global_feats = num_global_feats
 

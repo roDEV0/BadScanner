@@ -6,6 +6,7 @@ import numpy
 
 # TODO: Optimize this
 
+
 def ca(mesh: open3d.geometry.TriangleMesh):
     t_mesh = open3d.t.geometry.TriangleMesh.from_legacy(mesh)
 

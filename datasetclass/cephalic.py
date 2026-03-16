@@ -4,11 +4,14 @@ from utils.randomizing import generate_random
 from pathlib import Path
 import numpy
 
+
 class HeadScanDataset(Dataset):
     def __init__(self, directory, randomize=False):
         self.directory = Path(directory)
         self.randomize = randomize
-        self.paths = [file for file in self.directory.iterdir() if file.suffix == ".npz"]
+        self.paths = [
+            file for file in self.directory.iterdir() if file.suffix == ".npz"
+        ]
 
     def __len__(self):
         return len(self.paths)
@@ -18,7 +21,7 @@ class HeadScanDataset(Dataset):
 
         cloud = data["cloud"].astype(numpy.float32)
         truths = data["truths"].astype(numpy.float32)
-        identity = data["plageo"].astype(numpy.bool)
+        identity = data["plageo"].astype(bool)
 
         if self.randomize:
             cloud = generate_random(cloud)

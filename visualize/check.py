@@ -23,11 +23,11 @@ POINT_COLORS = [
 dataset = HeadScanDataset(NPZ_DIR)
 checkpoint = torch.load(MODELS_DIR)
 
-target_mean = checkpoint['target_mean'].to(device)
-target_std  = checkpoint['target_std'].to(device)
+target_mean = checkpoint["target_mean"].to(device)
+target_std = checkpoint["target_std"].to(device)
 
 model = CRegression(1028).to(device)
-model.load_state_dict(checkpoint['model_state_dict'])
+model.load_state_dict(checkpoint["model_state_dict"])
 model.eval()
 
 loader = DataLoader(dataset, batch_size=1, shuffle=True, drop_last=True)
@@ -79,7 +79,7 @@ length_two = numpy.linalg.norm(output_cpu[2] - output_cpu[3])
 # elif plageo > 11:
 #     plageo_check = "Severe"
 
-plageo_check = (length_one/length_two) * 100
+plageo_check = (length_one / length_two) * 100
 
 print(f"Top-Down Length: {length_two}")
 print(f"Left-Right Length: {length_one}")

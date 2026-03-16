@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 class CVTnet(nn.Module):
     def __init__(self, dim, num_points=200):
         super(CVTnet, self).__init__()
@@ -15,7 +16,7 @@ class CVTnet(nn.Module):
 
         self.linear1 = nn.Linear(1024, 512)
         self.linear2 = nn.Linear(512, 256)
-        self.linear3 = nn.Linear(256, dim ** 2)
+        self.linear3 = nn.Linear(256, dim**2)
 
         self.bn1 = nn.BatchNorm1d(64)
         self.bn2 = nn.BatchNorm1d(128)
