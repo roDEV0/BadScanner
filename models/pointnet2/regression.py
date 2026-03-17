@@ -8,8 +8,8 @@ class PointNet(nn.Module):
     def __init__(self):
         super(PointNet, self).__init__()
 
-        self.abs1 = SetAbstraction(50, 50, 512, 3, 64)
-        self.abs2 = SetAbstraction(100, 50, 256, 64, 128)
+        self.abs1 = SetAbstraction(50, 50, 512, 3, 48)
+        self.abs2 = SetAbstraction(100, 50, 256, 48, 128)
         self.abs3 = SetAbstraction(150, 50, 128, 128, 256)
 
         self.fc1 = nn.Linear(256, 128)
@@ -25,7 +25,9 @@ class PointNet(nn.Module):
         features = points
 
         points, features = self.abs1(points, features)
+        print("Layer 1 complete")
         points, features = self.abs2(points, features)
+        print("Layer 2 complete")
         points, features = self.abs3(points, features)
 
         features = features.max(dim=1).values

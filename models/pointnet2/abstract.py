@@ -16,7 +16,7 @@ class SampleAndGroup(nn.Module):
         # xyz is the B x N x 3 tensor
         with torch.no_grad():
             batch_centroids = pnet_utils.farthest_point_sample(xyz, self.samples)
-            batch_xyz, batch_features = pnet_utils.ball_query(batch_centroids, xyz, features, self.radius, self.max_neighbors)
+        batch_xyz, batch_features = pnet_utils.ball_query(batch_centroids, xyz, features, self.radius, self.max_neighbors)
 
         # Returns B x N' x 3 and B x N' x K x 3 and B x N' x K x C
         return batch_centroids, batch_xyz, batch_features
@@ -41,12 +41,11 @@ class PointNet(nn.Module):
         self.bn4 = nn.BatchNorm1d(features)
 
     def forward(self, xyz: torch.Tensor, features: torch.Tensor, centroids: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-
         # Local frame: subtract centroid from coords only -> B x N' x K x 3/C
-        if features.shape[-1] == 3:
-            x = xyz - centroids.unsqueeze(2)
-        else:
-            x = features
+        relative_coords = xyz - centroids.unsqueeze(2)
+
+        # Keep input channels consistent with constructor: [relative_coords(3) + features(dims)].
+        x = torch.cat([relative_coords, features], dim=-1)
 
         B, Np, K, C_in = x.shape
 
@@ -72,7 +71,8 @@ class SetAbstraction(nn.Module):
         super().__init__()
         self.radius = radius
         self.sample_and_group = SampleAndGroup(n_centroids, radius, max_neighbors)
-        self.pointnet = PointNet(dims, features)
+        # PointNet receives concatenated [relative_coords(3) + features(dims)]
+        self.pointnet = PointNet(3 + dims, features)
 
     def forward(self, xyz: torch.Tensor, features: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         new_centroids, new_xyz, new_features = self.sample_and_group(xyz, features)
