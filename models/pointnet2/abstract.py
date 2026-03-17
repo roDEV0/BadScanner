@@ -52,9 +52,9 @@ class PointNet(nn.Module):
         x = x.permute(0, 1, 3, 2).reshape(B * Np, C_in, K)
 
 
-        x = self.bn1(F.relu(self.conv1(x)))
-        x = self.bn2(F.relu(self.conv2(x)))
-        x = self.bn3(F.relu(self.conv3(x)))
+        x = F.relu(self.bn1(self.conv1(x)))
+        x = F.relu(self.bn2(self.conv2(x)))
+        x = F.relu(self.bn3(self.conv3(x)))
         x = self.bn4(self.conv4(x))
 
         x = F.max_pool1d(x, x.size(-1))  # B*N' x C' x 1

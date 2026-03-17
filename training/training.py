@@ -1,4 +1,6 @@
 import torch
+import random
+import numpy
 
 from datasetclass.cephalic import HeadScanDataset
 from pathlib import Path
@@ -9,21 +11,30 @@ from models.pointnet2.regression import PointNet
 
 BATCH = 32
 EPOCHS = 200
-LR = 0.05
+LR = 1e-3
 EVAL_PERC = 0.2
+WEIGHT_DECAY = 1e-4
+SEED = 42
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
+torch.manual_seed(SEED)
+random.seed(SEED)
+numpy.random.seed(SEED)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed_all(SEED)
+
 root = Path(__file__).resolve().parent.parent
 NPZ_DIR = root / "dataset/cephalic"
 MODELS_DIR = root / "checkpoint"
+MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
 dataset = HeadScanDataset(NPZ_DIR, randomize=False)
 
 indices = list(range(len(dataset)))
 train_indices, eval_indices = train_test_split(
-    indices, test_size=EVAL_PERC, shuffle=True
+    indices, test_size=EVAL_PERC, shuffle=True, random_state=SEED
 )
 
 train_data = HeadScanDataset(NPZ_DIR, randomize=True)
@@ -42,13 +53,13 @@ for _, truths, _ in train_loader:
 train_targets = torch.cat(train_targets, dim=0)
 
 target_mean = train_targets.mean(dim=0).to(device)
-target_std = train_targets.std(dim=0).to(device)
+target_std = train_targets.std(dim=0).clamp_min(1e-6).to(device)
 
 print(f"Target mean:\n{target_mean}")
 print(f"Target std:\n{target_std}")
 
 model = PointNet().to(device)
-optimizer = torch.optim.Adam(model.parameters(), lr=LR)
+optimizer = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
     optimizer, mode="min", factor=0.5, patience=10
 )
@@ -64,7 +75,7 @@ for epoch in range(EPOCHS):
         cloud = cloud.to(device)
         truths = truths.to(device)
 
-        optimizer.zero_grad()
+        optimizer.zero_grad(set_to_none=True)
         outputs = model(cloud)
 
         truths_norm = (truths - target_mean) / target_std
@@ -72,6 +83,7 @@ for epoch in range(EPOCHS):
         loss = F.l1_loss(outputs, truths_norm)
 
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         optimizer.step()
         train_loss += loss.item()
 

@@ -8,7 +8,11 @@ import torch
 import torch.nn.functional as F
 import optuna
 import optunahub
+import random
+import numpy
 import os
+
+SEED = 42
 
 class PointNetTunable(nn.Module):
     def __init__(self, trial: optuna.Trial):
@@ -70,11 +74,15 @@ class PointNetTunable(nn.Module):
         return x.view(batch_size, 4, 3)
 
 def objective(trial: optuna.Trial):
+    model = optimizer = scheduler = None
+    train_loader = eval_loader = train_set = eval_set = None
+
     torch.cuda.empty_cache()
     try:
         batch_size = trial.suggest_categorical("batch_size", [16, 32, 64, 128])
         epochs = trial.suggest_categorical("epochs", [50, 75, 100, 125, 150, 175, 200])
         learning_rate = trial.suggest_float("learning_rate", 1e-4, 1e-1, log=True)
+        weight_decay = trial.suggest_float("weight_decay", 1e-6, 1e-2, log=True)
 
         lr_reduction = trial.suggest_float("lr_reduction", 0.1, 0.9, log=True)
         patience = trial.suggest_int("patience", 5, 20)
@@ -83,19 +91,27 @@ def objective(trial: optuna.Trial):
         EPOCHS = epochs
         LR = learning_rate
         EVAL_PERC = 0.2
+        WEIGHT_DECAY = weight_decay
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"Using device: {device}")
 
+        torch.manual_seed(SEED)
+        random.seed(SEED)
+        numpy.random.seed(SEED)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(SEED)
+
         root = Path(__file__).resolve().parent.parent
         NPZ_DIR = root / "dataset/cephalic"
         MODELS_DIR = root / "checkpoint"
+        MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
         dataset = HeadScanDataset(NPZ_DIR, randomize=False)
 
         indices = list(range(len(dataset)))
         train_indices, eval_indices = train_test_split(
-            indices, test_size=EVAL_PERC, shuffle=True
+            indices, test_size=EVAL_PERC, shuffle=True, random_state=SEED
         )
 
         train_data = HeadScanDataset(NPZ_DIR, randomize=True)
@@ -114,13 +130,13 @@ def objective(trial: optuna.Trial):
         train_targets = torch.cat(train_targets, dim=0)
 
         target_mean = train_targets.mean(dim=0).to(device)
-        target_std = train_targets.std(dim=0).to(device)
+        target_std = train_targets.std(dim=0).clamp_min(1e-6).to(device)
 
         print(f"Target mean:\n{target_mean}")
         print(f"Target std:\n{target_std}")
 
         model = PointNetTunable(trial).to(device)
-        optimizer = torch.optim.Adam(model.parameters(), lr=LR)
+        optimizer = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer, mode="min", factor=lr_reduction, patience=patience
         )
@@ -136,7 +152,7 @@ def objective(trial: optuna.Trial):
                 cloud = cloud.to(device)
                 truths = truths.to(device)
 
-                optimizer.zero_grad()
+                optimizer.zero_grad(set_to_none=True)
                 outputs = model(cloud)
 
                 truths_norm = (truths - target_mean) / target_std
@@ -144,6 +160,7 @@ def objective(trial: optuna.Trial):
                 loss = F.l1_loss(outputs, truths_norm)
 
                 loss.backward()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
                 optimizer.step()
                 train_loss += loss.item()
 
@@ -211,7 +228,7 @@ study = optuna.create_study(
     sampler=sampler,
     pruner=pruner,
     study_name="pointnet2_headscan",
-    storage=os.getenv("DB_URL"),
+    storage=storage,
     load_if_exists=True,
 )
 

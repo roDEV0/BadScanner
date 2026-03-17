@@ -6,7 +6,12 @@ def farthest_point_sample(points: torch.Tensor, n_centroids: int) -> torch.Tenso
     if points.shape[-1] != 3:
         points = points.permute(0, 2, 1)
 
-    batch_centroids, _ = torch_fpsample.sample(points.cpu(), n_centroids)
+    # Prefer native device sampling; fallback to CPU if backend does not support current device.
+    try:
+        batch_centroids, _ = torch_fpsample.sample(points, n_centroids)
+    except RuntimeError:
+        batch_centroids, _ = torch_fpsample.sample(points.cpu(), n_centroids)
+
     return batch_centroids.to(points.device)
 
 # Needs to be B x N' x 3 and B x N x 3 and B x N x C size
@@ -23,24 +28,23 @@ def ball_query(centroids: torch.Tensor, xyz: torch.Tensor, features: torch.Tenso
 
     dists = torch.cdist(centroids, xyz)  # B x N' x N
 
-    sorted_dists, sorted_idx = torch.sort(dists, dim=-1)
-    neighbor_idx = sorted_idx[:, :, :samples]
-    neighbor_dists = sorted_dists[:, :, :samples]  # B x N' x K
+    k = min(samples, N)
+    neighbor_dists, neighbor_idx = torch.topk(dists, k=k, dim=-1, largest=False, sorted=True)
 
-    nearest = sorted_idx[:, :, 0].unsqueeze(-1)  # B x N' x 1
+    nearest = neighbor_idx[:, :, 0].unsqueeze(-1)  # B x N' x 1
     neighbor_idx = torch.where(
         neighbor_dists < radius,
         neighbor_idx,
-        nearest.expand(B, Np, samples),
+        nearest.expand(B, Np, k),
     )
 
     # Gather xyz neighbors: B x N' x K x 3
-    idx_xyz = neighbor_idx.unsqueeze(-1).expand(B, Np, samples, 3)
+    idx_xyz = neighbor_idx.unsqueeze(-1).expand(B, Np, k, 3)
     xyz_exp = xyz.unsqueeze(1).expand(B, Np, N, 3)
     xyz_neighbors = torch.gather(xyz_exp, 2, idx_xyz)
 
     # Gather feature neighbors: B x N' x K x C
-    idx_feat = neighbor_idx.unsqueeze(-1).expand(B, Np, samples, C)
+    idx_feat = neighbor_idx.unsqueeze(-1).expand(B, Np, k, C)
     feat_exp = features.unsqueeze(1).expand(B, Np, N, C)
     feature_neighbors = torch.gather(feat_exp, 2, idx_feat)
 
